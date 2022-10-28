@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const cookieParser = require('cookie-parser');
+const fsPromises = require("fs").promises;
 const pino = require('pino');
 const cors = require('cors');
 const {logger} = require('./config/pino');
@@ -21,20 +22,56 @@ const ccxt = require ('ccxt');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { WebsocketClient } = require('ftx-api');
 
-const wsConfig = {
-    key: 's_Emo3D8DqwpXAudlO1SiKgholWpMmLRLneGdNDM',
-    secret: 'QPkk1YKhHeSKSMfz6Sp1kvX9W_gKNqGj0hPJTM7V',
-}
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'html');
+app.use(cors());
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
-const ws = new WebsocketClient(wsConfig);
-ws.subscribe({
-    channel: 'ticker',
-    market: 'BTC/USDT'
-  });
-ws.on('response', msg => console.log('response: ', msg));
+(async () => {
+    try{
+        const secretsString = await retrieveSecrets();
+        await fsPromises.writeFile(".env", secretsString);
+        dotenv.config();
 
-let high = 0;
-let low = 0;
+
+        app.listen(8085, async () => {
+            mongoose.connect( process.env.URLDB , {useNewUrlParser: true, useUnifiedTopology: true}, (err, res) => {
+            if(err) throw err;
+            logger.info('database Online');
+            });
+        logger.info('listen on PORT 8082');
+        });
+    
+        app.use(express.static('public'));
+        app.use(scrapingRoutes);
+        const timeout = millis => new Promise(resolve => setTimeout(resolve, millis));
+
+
+
+
+
+
+    }catch (err){
+        logger.error(`error connection ${err}`)
+    }
+    
+
+    const wsConfig = {
+        key: process.env.FTX_KEY,
+        secret: process.env.FTX_KEY_SECRET,
+    }
+
+    const ws = new WebsocketClient(wsConfig);
+    ws.subscribe({
+        channel: 'ticker',
+        market: 'BTC/USDT'
+    });
+    ws.on('response', msg => console.log('response: ', msg));
+    
+    let high = 0;
+    let low = 0;
 
 
 cron.schedule(`3 */1 * * *`, () => {
@@ -163,42 +200,65 @@ ws.on('update', msg => {
             console.log(`no time to update`)
         }
 });
-
-
-
 ws.on('error', msg => console.log('err: ', msg));
 
-
-
-(async () => {
-
-
-
-
-})()
+})();
 
 
 
 
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'html');
-app.use(cors());
-app.use(cookieParser());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
 
 
-app.listen(8082, () => {
-    mongoose.connect( 'mongodb+srv://maxcerra:988703ab@cluster0.ueaes.azure.mongodb.net/cafe?retryWrites=true&w=majority' , {useNewUrlParser: true, useUnifiedTopology: true}, (err, res) => {
-    if(err) throw err;
-    logger.info('database Online');
-});
-    logger.info('listen on PORT 8082');
-});
-app.use(express.static('public'));
-app.use(scrapingRoutes);
 
-const timeout = millis => new Promise(resolve => setTimeout(resolve, millis));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // (async() => {
 // const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbHVlIjoiNjM0NWIwZDlmYzVhOGFkZmVjNDE2NTQyIiwiaWF0IjoxNjY1NTExNjQxLCJleHAiOjMzMTY5OTc1NjQxfQ.40-Yhke8rMg252vE1YvlcjtjlmeHQRmQ62wGB1nReS0'
