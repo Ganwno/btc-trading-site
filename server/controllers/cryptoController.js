@@ -5,7 +5,7 @@ const BTC_USDT_FTX_15m = require('../models/btc-ftx-15m.js');
 const BTC_USDT_FTX_1h = require('../models/btc-ftx-1h.js')
 
 const {logger} = require('../config/pino');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const ATR = require('technicalindicators').ATR
