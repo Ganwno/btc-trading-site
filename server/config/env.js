@@ -3,7 +3,7 @@ const AWS = require('aws-sdk');
 module.exports = () => {
     const secretManager = new AWS.SecretsManager({ region: 'sa-east-1'});
     return new Promise ((resolve, reject) => {
-        secretManager.getSecretValue({ SecretId: '********************' }, (err, data) => {
+        secretManager.getSecretValue({ SecretId: '**************************' }, (err, data) => {
             if(err) {
                 reject (err)
             }else {
