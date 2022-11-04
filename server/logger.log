@@ -15982,3 +15982,4 @@
 [28-10-2022, 20:55:14] INFO (32216 on DESKTOP-771UJJ7): database Online
 [30-10-2022, 16:36:43] INFO (13680 on DESKTOP-771UJJ7): listen on PORT 8082
 [30-10-2022, 16:36:44] INFO (13680 on DESKTOP-771UJJ7): database Online
+[01-11-2022, 22:30:15] ERROR (18928 on DESKTOP-771UJJ7): error connection ValidationException: Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!
