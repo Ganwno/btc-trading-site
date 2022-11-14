@@ -448,8 +448,11 @@ document.querySelector('#btnradio3').addEventListener('click', function(e) {
         .then(res => {
             (async () => {
                 if(res.ok === true){
+                    console.log(res)
                     let trendResultUp = await trendCalc(res.up, res.data, true);
                     let trendResultDown = await trendCalc(res.down, res.data, false);
+                    console.log(trendResultUp)
+                    console.log(trendResultDown)
                     let trendBuyOrSellResult = await trendBuyOrSell(trendResultUp, trendResultDown, res.data, true);
                     let axisAnnotation = [];
 

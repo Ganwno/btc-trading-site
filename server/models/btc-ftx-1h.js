@@ -13,6 +13,8 @@ const schema = new mongoose.Schema({
     atr: {type: Number},
     up: {type: Number},
     down: {type: Number},
+    trendUp :  {type: Number},
+    trendDown :  {type: Number},
     chartOHLC: {type: Array},
 }, {
     collection: 'btc/usd-ftx-1h'

@@ -35,13 +35,13 @@ app.use(bodyParser.json());
         await fsPromises.writeFile(".env", secretsString);
         dotenv.config();
 
-
-        app.listen(8085, async () => {
+        const PORT = 8085;
+        app.listen(PORT, async () => {
             mongoose.connect( process.env.URLDB , {useNewUrlParser: true, useUnifiedTopology: true}, (err, res) => {
             if(err) throw err;
             logger.info('database Online');
             });
-        logger.info('listen on PORT 8082');
+        logger.info(`listen on PORT ${PORT}`);
         });
     
         app.use(express.static('public'));
@@ -58,149 +58,149 @@ app.use(bodyParser.json());
     }
     
 
-    const wsConfig = {
-        key: process.env.FTX_KEY,
-        secret: process.env.FTX_KEY_SECRET,
-    }
+//     const wsConfig = {
+//         key: process.env.FTX_KEY,
+//         secret: process.env.FTX_KEY_SECRET,
+//     }
 
-    const ws = new WebsocketClient(wsConfig);
-    ws.subscribe({
-        channel: 'ticker',
-        market: 'BTC/USDT'
-    });
-    ws.on('response', msg => console.log('response: ', msg));
+//     const ws = new WebsocketClient(wsConfig);
+//     ws.subscribe({
+//         channel: 'ticker',
+//         market: 'BTC/USDT'
+//     });
+//     ws.on('response', msg => console.log('response: ', msg));
     
-    let high = 0;
-    let low = 0;
+//     let high = 0;
+//     let low = 0;
 
 
-cron.schedule(`3 */1 * * *`, () => {
-    (async () => {
-        try{
-            const findLastRecord = await BTC_USDT_FTX_1h.find().sort({unix: -1}).limit(1);
-            const exchange = new ccxt.ftx ()
-            const symbol = 'BTC/USDT'
-            const limit = 1;
-            const market = await exchange.fetchOHLCV(symbol, timeframe = '1h', since = findLastRecord[0].unix, limit);
-            if(findLastRecord[0].unix === market[0][0]){
-                console.log(market);
-                high = market[0][2];
-                low = market[0][3];
-                console.log(`current high price: ${high}`)
-                console.log(`current low price: ${low}`)
-            }else{
-                console.log(`create new record`)
-            }
-        }catch(err){
-            console.log(err)
-        }
-    })()
-}, {
-    scheduled: true,
-    timezone: "America/Argentina/Buenos_Aires"
-});
+// cron.schedule(`3 */1 * * *`, () => {
+//     (async () => {
+//         try{
+//             const findLastRecord = await BTC_USDT_FTX_1h.find().sort({unix: -1}).limit(1);
+//             const exchange = new ccxt.ftx ()
+//             const symbol = 'BTC/USDT'
+//             const limit = 1;
+//             const market = await exchange.fetchOHLCV(symbol, timeframe = '1h', since = findLastRecord[0].unix, limit);
+//             if(findLastRecord[0].unix === market[0][0]){
+//                 console.log(market);
+//                 high = market[0][2];
+//                 low = market[0][3];
+//                 console.log(`current high price: ${high}`)
+//                 console.log(`current low price: ${low}`)
+//             }else{
+//                 console.log(`create new record`)
+//             }
+//         }catch(err){
+//             console.log(err)
+//         }
+//     })()
+// }, {
+//     scheduled: true,
+//     timezone: "America/Argentina/Buenos_Aires"
+// });
 
 
-ws.on('update', msg => {
-    let date = new Date();
-    date.setMinutes(0);
-    date.setSeconds(0);
-    date.setMilliseconds(0);
-    let timeFrame = date.getTime();
-    let currentTimeFrame = (new Date()).getTime()
-    if( currentTimeFrame  > timeFrame+150000){
-    if(low === 0 || high === 0 || low === undefined || high === undefined){
-        console.log(`low/high without price. Find Market price: ${low} ${high}`)
-        BTC_USDT_FTX_1h.find().sort({unix: -1}).limit(1)
-        .then(res => {
-            const exchange = new ccxt.ftx ()
-            const symbol = 'BTC/USDT'
-            const limit = 1;
-            const market = exchange.fetchOHLCV(symbol, timeframe = '1h', since = res[0].unix, limit)
-            .then(result => {
-                console.log(`last price market:`, result[0])
-                if(res[0].unix === result[0][0]){
-                    if(res[0].high < result[0][2] || res[0].low < result[0][3]){
-                        BTC_USDT_FTX_1h.findOneAndUpdate({unix: res[0].unix}, {low: result[0][3], high: result[0][2]})
-                        .then(resUpdate => console.log(resUpdate))
-                        .catch(resUpdateError => console.log(resUpdateError));
-                        high = result[0][2];
-                        low = result[0][3];
-                        console.log(`current high market price: ${high}`)
-                        console.log(`current low market price: ${low}`)                      
-                    }else{
-                        high = result[0][2];
-                        low = result[0][3];
-                        console.log(`current high market price: ${high}`)
-                        console.log(`current low market price: ${low}`)
-                    }
-                }
-            })
-            .catch(err => {
-                console.log(err)
-            })
-        })
-        .catch(err => {
-            console.log(err)
-        })
-    }else {
-        if(high < msg.data.ask){
-            console.log(new Date(currentTimeFrame))
-            console.log(new Date(timeFrame), timeFrame)
-            console.log(msg.data.ask, high);
-            console.log(`last high price: ${high}`)
-            high = msg.data.ask
-            console.log(`new high price: ${high}`)
-            BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame}, {high: high})
-            .then(res => {
-                BTC_USDT_FTX_1h.findOne({unix: (timeFrame-3600000)})
-                    .then(resAtr => {
-                        let newAtr = (resAtr.atr * 6 + Math.max( Math.max(( high - res.low), ( high - res.open)), (res.low - res.open ) )) / 7;
-                        if(newAtr != resAtr.atr){
-                            BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{atr: newAtr})
-                            .then(resUpdateAtr => console.log(`update atr`))
-                            .catch(resErrorAtrUpdate => console.log(`error atr update`))
-                            logger.info(`update Atr - new atr ${newAtr} - last atr ${resAtr.atr}`)
-                        }
-                    })
-                    .catch(errAtr => {
-                        console.log(errAtr)
-                    })
-                console.log(`update result: ${res}`)
-        })
-            .catch(err => console.log(`update result error: ${err}`))
-        }
-        if(low > msg.data.bid){
-            console.log(new Date(timeFrame))
-            console.log(new Date(currentTimeFrame))
-            console.log(`last low price: ${low}`)
-            low = msg.data.bid
-            console.log(`new low price: ${low}`)
-            BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{low: low})
-            .then(res => {
-                BTC_USDT_FTX_1h.findOne({unix: (timeFrame-3600000)})
-                    .then(resAtr => {
-                        let newAtr = (resAtr.atr * 6 + Math.max( Math.max(( res.high - low), ( res.high - res.open)), (low - res.open ) )) / 7;
-                        if(newAtr != resAtr.atr){
-                            BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{atr: newAtr})
-                            .then(resUpdateAtr => console.log(`update atr`))
-                            .catch(resErrorAtrUpdate => console.log(`error atr update`))
-                            logger.info(`update Atr - new atr ${newAtr} - last atr ${resAtr.atr}`)
-                        }
-                    })
-                    .catch(errAtr => {
-                        console.log(errAtr)
-                    })
-                console.log(`update result: ${res}`)
-            })
-            .catch(err => console.log(`update result error: ${err}`))
-        }
-    }
-        }else {
-            console.log(`no time to update`)
-        }
-});
-ws.on('error', msg => console.log('err: ', msg));
+// ws.on('update', msg => {
+//     let date = new Date();
+//     date.setMinutes(0);
+//     date.setSeconds(0);
+//     date.setMilliseconds(0);
+//     let timeFrame = date.getTime();
+//     let currentTimeFrame = (new Date()).getTime()
+//     if( currentTimeFrame  > timeFrame+150000){
+//     if(low === 0 || high === 0 || low === undefined || high === undefined){
+//         console.log(`low/high without price. Find Market price: ${low} ${high}`)
+//         BTC_USDT_FTX_1h.find().sort({unix: -1}).limit(1)
+//         .then(res => {
+//             const exchange = new ccxt.ftx ()
+//             const symbol = 'BTC/USDT'
+//             const limit = 1;
+//             const market = exchange.fetchOHLCV(symbol, timeframe = '1h', since = res[0].unix, limit)
+//             .then(result => {
+//                 console.log(`last price market:`, result[0])
+//                 if(res[0].unix === result[0][0]){
+//                     if(res[0].high < result[0][2] || res[0].low < result[0][3]){
+//                         BTC_USDT_FTX_1h.findOneAndUpdate({unix: res[0].unix}, {low: result[0][3], high: result[0][2]})
+//                         .then(resUpdate => console.log(resUpdate))
+//                         .catch(resUpdateError => console.log(resUpdateError));
+//                         high = result[0][2];
+//                         low = result[0][3];
+//                         console.log(`current high market price: ${high}`)
+//                         console.log(`current low market price: ${low}`)                      
+//                     }else{
+//                         high = result[0][2];
+//                         low = result[0][3];
+//                         console.log(`current high market price: ${high}`)
+//                         console.log(`current low market price: ${low}`)
+//                     }
+//                 }
+//             })
+//             .catch(err => {
+//                 console.log(err)
+//             })
+//         })
+//         .catch(err => {
+//             console.log(err)
+//         })
+//     }else {
+//         if(high < msg.data.ask){
+//             console.log(new Date(currentTimeFrame))
+//             console.log(new Date(timeFrame), timeFrame)
+//             console.log(msg.data.ask, high);
+//             console.log(`last high price: ${high}`)
+//             high = msg.data.ask
+//             console.log(`new high price: ${high}`)
+//             BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame}, {high: high})
+//             .then(res => {
+//                 BTC_USDT_FTX_1h.findOne({unix: (timeFrame-3600000)})
+//                     .then(resAtr => {
+//                         let newAtr = (resAtr.atr * 6 + Math.max( Math.max(( high - res.low), ( high - res.open)), (res.low - res.open ) )) / 7;
+//                         if(newAtr != resAtr.atr){
+//                             BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{atr: newAtr})
+//                             .then(resUpdateAtr => console.log(`update atr`))
+//                             .catch(resErrorAtrUpdate => console.log(`error atr update`))
+//                             logger.info(`update Atr - new atr ${newAtr} - last atr ${resAtr.atr}`)
+//                         }
+//                     })
+//                     .catch(errAtr => {
+//                         console.log(errAtr)
+//                     })
+//                 console.log(`update result: ${res}`)
+//         })
+//             .catch(err => console.log(`update result error: ${err}`))
+//         }
+//         if(low > msg.data.bid){
+//             console.log(new Date(timeFrame))
+//             console.log(new Date(currentTimeFrame))
+//             console.log(`last low price: ${low}`)
+//             low = msg.data.bid
+//             console.log(`new low price: ${low}`)
+//             BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{low: low})
+//             .then(res => {
+//                 BTC_USDT_FTX_1h.findOne({unix: (timeFrame-3600000)})
+//                     .then(resAtr => {
+//                         let newAtr = (resAtr.atr * 6 + Math.max( Math.max(( res.high - low), ( res.high - res.open)), (low - res.open ) )) / 7;
+//                         if(newAtr != resAtr.atr){
+//                             BTC_USDT_FTX_1h.findOneAndUpdate({unix: timeFrame},{atr: newAtr})
+//                             .then(resUpdateAtr => console.log(`update atr`))
+//                             .catch(resErrorAtrUpdate => console.log(`error atr update`))
+//                             logger.info(`update Atr - new atr ${newAtr} - last atr ${resAtr.atr}`)
+//                         }
+//                     })
+//                     .catch(errAtr => {
+//                         console.log(errAtr)
+//                     })
+//                 console.log(`update result: ${res}`)
+//             })
+//             .catch(err => console.log(`update result error: ${err}`))
+//         }
+//     }
+//         }else {
+//             console.log(`no time to update`)
+//         }
+// });
+// ws.on('error', msg => console.log('err: ', msg));
 
 })();
 
